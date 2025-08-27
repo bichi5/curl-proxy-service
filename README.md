@@ -2,15 +2,17 @@
 
 A lightweight Python Flask service that acts as a proxy to execute curl commands on the server. This service allows you to make HTTP requests through a containerized environment with curl capabilities.
 
+**Coded by** bichi5@gmail.com
+
 ## Features
 
 - 🐍 **Minimal Python Alpine image** - Small footprint (~50MB)
-- 🔒 **Security-focused** - Runs as non-root user with request timeouts
+- 🔒 **Security-focused** - Rate limiting, URL validation, non-root user
+- ⏱️ **Rate limiting** - Maximum 1 request per 10 seconds per IP address
 - 🚀 **Easy deployment** - Docker and Docker Compose ready
 - 💡 **Simple API** - RESTful endpoint with JSON responses
 - 🏥 **Health checks** - Built-in health monitoring
 - ⚡ **Fast responses** - Optimized for quick curl operations
-- **Coded by** bichi5@gmail.com
 
 ## Quick Start
 
@@ -60,7 +62,19 @@ curl "http://localhost:5001/proxy?url=https://httpbin.org/json"
 {
   "success": true,
   "data": "your-ip-address",
-  "url": "https://ipinfo.io/ip"
+  "url": "https://ipinfo.io/ip",
+  "client_ip": "192.168.1.100",
+  "rate_limit": "1 request per 10 second(s)"
+}
+```
+
+**Rate limiting response (HTTP 429):**
+```json
+{
+  "error": "Rate limit exceeded",
+  "message": "Maximum 1 request per 10 seconds allowed", 
+  "retry_after": "7.25 seconds",
+  "client_ip": "192.168.1.100"
 }
 ```
 
@@ -74,7 +88,9 @@ curl http://localhost:5001/health
 ```json
 {
   "status": "healthy",
-  "service": "curl-proxy"
+  "service": "curl-proxy",
+  "rate_limit": "1 request per 10 second(s)",
+  "security": "enabled"
 }
 ```
 
@@ -98,11 +114,13 @@ curl http://localhost:5001/
 
 ### Security Features
 
-- Request timeout: 15 seconds
-- Curl timeout: 10 seconds
-- Maximum redirects: 5
-- Runs as non-root user
-- Input validation
+- **Rate limiting**: 1 request per 10 seconds per IP address
+- **URL validation**: Only http:// and https:// URLs allowed
+- **Request timeout**: 15 seconds maximum
+- **Curl timeout**: 10 seconds maximum
+- **Maximum redirects**: 5 redirects
+- **Non-root user**: Runs as non-privileged user
+- **Input validation**: Validates all input parameters
 
 ## Configuration
 
@@ -166,6 +184,8 @@ docker inspect curl-proxy-service --format='{{.State.Health.Status}}'
 1. **Port already in use**: Change the port mapping in `docker-compose.yml`
 2. **Permission denied**: Ensure Docker has proper permissions
 3. **Network issues**: Check if the target URL is accessible from the container
+4. **Rate limit errors**: Wait 10 seconds between requests from the same IP
+5. **Invalid URL**: Ensure URLs start with http:// or https://
 
 ## Production Deployment
 
@@ -193,13 +213,19 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Security Notice
 
-This service executes curl commands on the server. Use with caution and implement proper network security measures in production environments. Consider:
+This service executes curl commands on the server with built-in security measures:
 
+- **Rate limiting**: 1 request per 10 seconds per IP address prevents abuse
+- **URL validation**: Only valid HTTP/HTTPS URLs are accepted
+- **Timeout controls**: Prevents hanging requests
+- **Non-root execution**: Container runs with limited privileges
+
+Additional recommendations for production:
 - Network segmentation
 - Firewall rules
-- Rate limiting
-- Request logging
-- Input sanitization for production use
+- Request logging and monitoring
+- Reverse proxy with additional rate limiting
+- SSL/TLS termination
 
 ## Support
 
